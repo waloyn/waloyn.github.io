@@ -1,22 +1,40 @@
 (function() {
     try {
-        console.log('Image zoom script starting...');
+        let initialized = false;
 
         function initImageZoom() {
+            if (initialized) return;
+            initialized = true;
+
             try {
-                console.log('Initializing image zoom...');
-                
-                // 获取所有图片（排除带有 no-zoom 类的图片）
-                const images = document.querySelectorAll('img:not([class*="no-zoom"])');
-                console.log('Found images:', images.length);
+                // 获取所有图片
+                const images = document.querySelectorAll('img');
                 
                 if (images.length === 0) {
-                    console.log('No images found on page');
                     return;
                 }
                 
                 images.forEach(img => {
                     try {
+                        // 检查是否应该禁用缩放
+                        const shouldDisableZoom = 
+                            // 检查类名
+                            img.classList.contains('no-zoom') ||
+                            // 检查父元素类名
+                            (img.parentElement && img.parentElement.classList.contains('no-zoom')) ||
+                            // 检查 alt 文本是否包含特定标记
+                            img.alt.includes('{.no-zoom}') ||
+                            // 检查 title 属性
+                            img.title === 'no-zoom';
+
+                        if (shouldDisableZoom) {
+                            // 移除 {.no-zoom} 文本显示
+                            if (img.alt.includes('{.no-zoom}')) {
+                                img.alt = img.alt.replace('{.no-zoom}', '').trim();
+                            }
+                            return;
+                        }
+
                         // 添加点击样式
                         img.style.cursor = 'zoom-in';
                         
@@ -71,11 +89,13 @@
                             overlay.addEventListener('click', closeOverlay);
                             
                             // ESC 键关闭
-                            document.addEventListener('keydown', function(e) {
+                            const escHandler = function(e) {
                                 if (e.key === 'Escape') {
                                     closeOverlay();
+                                    document.removeEventListener('keydown', escHandler);
                                 }
-                            });
+                            };
+                            document.addEventListener('keydown', escHandler);
                             
                             overlay.appendChild(bigImg);
                             document.body.appendChild(overlay);
@@ -95,19 +115,14 @@
             }
         }
 
-        // 在 DOMContentLoaded 和 load 事件中都尝试初始化
-        document.addEventListener('DOMContentLoaded', initImageZoom);
-        window.addEventListener('load', initImageZoom);
-        
-        // 立即尝试初始化一次
-        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        // 在 DOMContentLoaded 时初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initImageZoom);
+        } else {
+            // 如果 DOM 已经加载完成，直接初始化
             initImageZoom();
         }
     } catch (error) {
         console.error('Fatal error in image-zoom script:', error);
     }
 })();
-
-// 添加一个全局标记
-window.imageZoomLoaded = true;
-console.log('Image zoom script loaded completely');
